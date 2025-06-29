@@ -3,10 +3,10 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 
-	"github.com/ivfiev/areyou/internal/db"
 	"github.com/ivfiev/areyou/internal/svc"
 )
 
@@ -18,12 +18,11 @@ func Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	kws := strings.Split(query[0], ",")
-	hash, err := svc.Hash(kws)
+	msg, ok, err := svc.Query(kws)
 	if err != nil {
 		handleSvcErr(err, w)
 		return
 	}
-	msg, ok, err := db.Read(hash)
 	if !ok {
 		writeError(w, http.StatusNotFound, "not found")
 		return
@@ -36,12 +35,7 @@ func Get(w http.ResponseWriter, r *http.Request) {
 func Post(w http.ResponseWriter, r *http.Request) {
 	var body PostMessage
 	json.NewDecoder(r.Body).Decode(&body)
-	hash, err := svc.Hash(body.Keywords)
-	if err != nil {
-		handleSvcErr(err, w)
-		return
-	}
-	err = db.Write(hash, body.Message)
+	err := svc.Create(body.Keywords, body.Message)
 	if err != nil {
 		handleSvcErr(err, w)
 		return
@@ -51,8 +45,13 @@ func Post(w http.ResponseWriter, r *http.Request) {
 
 func handleSvcErr(err error, w http.ResponseWriter) {
 	if err != nil {
-		// switch default 500
-		writeError(w, http.StatusBadRequest, err.Error())
+		switch err {
+		case svc.ErrBadKeywords:
+			writeError(w, http.StatusBadRequest, err.Error())
+		default:
+			slog.Error("internal server error", "err", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
+		}
 	}
 }
 
