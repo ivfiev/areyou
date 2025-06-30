@@ -6,9 +6,15 @@ import (
 	"net/http"
 
 	"github.com/ivfiev/areyou/internal/api"
+	"github.com/ivfiev/areyou/internal/db"
 )
 
 func main() {
+	closer, err := db.Init()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer closer()
 	http.HandleFunc("/message", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
