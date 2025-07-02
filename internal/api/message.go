@@ -46,7 +46,7 @@ func Post(w http.ResponseWriter, r *http.Request) {
 func handleSvcErr(err error, w http.ResponseWriter) {
 	if err != nil {
 		switch err {
-		case svc.ErrBadKeywords:
+		case svc.BadQuery:
 			writeError(w, http.StatusBadRequest, err.Error())
 		default:
 			slog.Error("internal server error", "err", err)

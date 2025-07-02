@@ -9,12 +9,17 @@ import (
 )
 
 var (
-	ErrBadKeywords = errors.New("bad keywords")
+	BadQuery = errors.New("bad query")
 )
 
 func Query(kws []string) (string, bool, error) {
 	if len(kws) < 1 || len(kws) > 9 {
-		return "", false, ErrBadKeywords
+		return "", false, BadQuery
+	}
+	for _, kw := range kws {
+		if len(kw) < 2 || len(kw) > 16 {
+			return "", false, BadQuery
+		}
 	}
 	kws = dedup(kws)
 	cat := cat(kws)
@@ -35,7 +40,12 @@ func Query(kws []string) (string, bool, error) {
 
 func Create(kws []string, msg string) error {
 	if len(kws) < 1 || len(kws) > 9 {
-		return ErrBadKeywords
+		return BadQuery
+	}
+	for _, kw := range kws {
+		if len(kw) < 2 || len(kw) > 16 {
+			return BadQuery
+		}
 	}
 	kws = dedup(kws)
 	cat := cat(kws)
