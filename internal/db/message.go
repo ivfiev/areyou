@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 
+	"modernc.org/sqlite"
 	_ "modernc.org/sqlite"
 )
+
+type DbError = sqlite.Error
 
 var db *sql.DB
 var migrated = false

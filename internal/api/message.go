@@ -48,6 +48,8 @@ func handleSvcErr(err error, w http.ResponseWriter) {
 		switch err {
 		case svc.BadQuery:
 			writeError(w, http.StatusBadRequest, err.Error())
+		case svc.Conflict:
+			writeError(w, http.StatusConflict, err.Error())
 		default:
 			slog.Error("internal server error", "err", err)
 			writeError(w, http.StatusInternalServerError, "internal server error")

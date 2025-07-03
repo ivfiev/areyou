@@ -10,6 +10,7 @@ import (
 
 var (
 	BadQuery = errors.New("bad query")
+	Conflict = errors.New("conflict")
 )
 
 func Query(kws []string) (string, bool, error) {
@@ -26,7 +27,7 @@ func Query(kws []string) (string, bool, error) {
 	hash := hash(cat)
 	msg, ok, err := db.Read(hash)
 	if err != nil {
-		return "", false, fmt.Errorf("db read error %w", err)
+		return "", false, mapErr(err)
 	}
 	if !ok {
 		return "", false, nil
@@ -55,10 +56,7 @@ func Create(kws []string, msg string) error {
 		return fmt.Errorf("encryption error %w", err)
 	}
 	err = db.Write(hash, encr)
-	if err != nil {
-		return fmt.Errorf("db write error %w", err)
-	}
-	return nil
+	return mapErr(err)
 }
 
 func cat(kws []string) string {
@@ -67,4 +65,18 @@ func cat(kws []string) string {
 
 func encryptionKey(hash, key string) string {
 	return hash + key
+}
+
+func mapErr(err error) error {
+	if err == nil {
+		return nil
+	}
+	switch err := err.(type) {
+	case *db.DbError:
+		if err.Code() == 2067 || err.Code() == 1555 {
+			return Conflict
+		}
+		return fmt.Errorf("db error %w", err)
+	}
+	return err
 }
