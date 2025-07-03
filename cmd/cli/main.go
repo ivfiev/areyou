@@ -2,12 +2,17 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"strings"
+	"sync"
+	"time"
 )
 
 type request struct {
@@ -27,15 +32,22 @@ func main() {
 		log.Fatalf("missing cli args")
 	}
 	addr = os.Args[1]
-	kws := []string{"abc"}
-	status, err := postMessage(kws, "hello world")
-	if err != nil {
-		log.Fatal(err)
+	var wg sync.WaitGroup
+	ws := 500
+	rps, wps := 500, 250
+	secs := 10
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(secs))
+	defer cancel()
+	wg.Add(ws)
+	reqs := 0
+	for range ws {
+		go func() {
+			defer wg.Done()
+			reqs += work(ctx, rps, wps)
+		}()
 	}
-	fmt.Println(status)
-	msg, err := getMessage(kws)
-	fmt.Println(msg)
-	fmt.Println(*msg.Message)
+	wg.Wait()
+	fmt.Println(reqs)
 }
 
 func getMessage(kws []string) (*response, error) {
@@ -45,6 +57,7 @@ func getMessage(kws []string) (*response, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	defer io.Copy(io.Discard, resp.Body)
 	response := &response{}
 	err = json.NewDecoder(resp.Body).Decode(response)
 	if err != nil {
@@ -69,5 +82,53 @@ func postMessage(kws []string, msg string) (int, error) {
 		return 0, err
 	}
 	defer resp.Body.Close()
+	defer io.Copy(io.Discard, resp.Body)
 	return resp.StatusCode, nil
+}
+
+func randWord() string {
+	len := 2 + rand.Int()%8
+	runes := make([]rune, len)
+	for i := range runes {
+		runes[i] = rune('a') + rune(rand.Int()%26)
+	}
+	return string(runes)
+}
+
+func randWords() []string {
+	len := 2 + rand.Int()%8
+	words := make([]string, len)
+	for i := range len {
+		words[i] = randWord()
+	}
+	return words
+}
+
+func work(ctx context.Context, rps, wps int) int {
+	tr := time.NewTicker(time.Millisecond * time.Duration(1000/rps))
+	defer tr.Stop()
+	tw := time.NewTicker(time.Millisecond * time.Duration(1000/wps))
+	defer tw.Stop()
+	reqs := 0
+	for {
+		select {
+		case <-tr.C:
+			kws := randWords()
+			_, err := getMessage(kws)
+			reqs++
+			if err != nil {
+				log.Fatal(err)
+			}
+		case <-tw.C:
+			kws := randWords()
+			msg := strings.Join(randWords(), " ")
+			status, err := postMessage(kws, msg)
+			reqs++
+			if err != nil || status != 200 {
+				log.Fatal(status, err)
+			}
+		case <-ctx.Done():
+			return reqs
+		}
+	}
 }
