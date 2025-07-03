@@ -28,3 +28,8 @@ func main() {
 	slog.Info("server running")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
+
+// ttl
+// rate limit
+// chains/breadcrumbs
+// e2e tests
