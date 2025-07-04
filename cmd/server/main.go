@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/ivfiev/areyou/internal/api"
+	"github.com/ivfiev/areyou/internal/cron"
 	"github.com/ivfiev/areyou/internal/db"
 )
 
@@ -15,6 +16,7 @@ func main() {
 		log.Fatal(err)
 	}
 	defer closer()
+	cron.Start()
 	http.HandleFunc("/message", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -29,7 +31,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-// ttl
-// rate limit
-// chains/breadcrumbs
 // e2e tests
+// ttl - ctx & signal shutdown
+// chains/breadcrumbs
+// rate limit

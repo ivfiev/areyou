@@ -25,7 +25,7 @@ func Query(kws []string) (string, bool, error) {
 	kws = dedup(kws)
 	cat := cat(kws)
 	hash := hash(cat)
-	msg, ok, err := db.Read(hash)
+	msg, ok, err := db.QueryKey(hash)
 	if err != nil {
 		return "", false, mapErr(err)
 	}
@@ -55,7 +55,7 @@ func Create(kws []string, msg string) error {
 	if err != nil {
 		return fmt.Errorf("encryption error %w", err)
 	}
-	err = db.Write(hash, encr)
+	err = db.Insert(hash, encr)
 	return mapErr(err)
 }
 
