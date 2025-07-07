@@ -1,6 +1,7 @@
 package cron
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -13,29 +14,35 @@ import (
 var MSG_TTL_MS = int64(48 * 3600 * 1000)
 var MSG_TTL_FREQ_MS = int64(5 * 60 * 1000)
 
-func Start() {
+func Start(ctx context.Context) {
 	setup()
-	go cronTTL()
+	go cronTTL(ctx)
 }
 
-func cronTTL() {
+func cronTTL(ctx context.Context) {
 	ttl := time.NewTicker(time.Millisecond * time.Duration(MSG_TTL_FREQ_MS))
-	for range ttl.C {
-		now := time.Now().UnixMilli()
-		keys, err := db.QueryOlder(now - MSG_TTL_MS)
-		if err != nil {
-			slog.Error("error querying expired messages", "err", err)
-			continue
-		}
-		fails := 0
-		for _, key := range keys {
-			err = db.DeleteKey(key)
+	for {
+		select {
+		case <-ttl.C:
+			now := time.Now().UnixMilli()
+			keys, err := db.QueryOlder(now - MSG_TTL_MS)
 			if err != nil {
-				slog.Error("error deleting expired message "+key, "err", err)
-				fails++
+				slog.Error("error querying expired messages", "err", err)
+				continue
 			}
+			fails := 0
+			for _, key := range keys {
+				err = db.DeleteKey(key)
+				if err != nil {
+					slog.Error("error deleting expired message "+key, "err", err)
+					fails++
+				}
+			}
+			slog.Info("deleted expired items", "successes", len(keys), "fails", fails)
+		case <-ctx.Done():
+			slog.Info("shutting down cron")
+			return
 		}
-		slog.Info("deleted expired items", "successes", len(keys), "fails", fails)
 	}
 }
 
