@@ -42,6 +42,8 @@ func main() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
+	fs := http.FileServer(http.Dir("./client"))
+	http.Handle("/", fs)
 
 	go func() {
 		log.Fatal(http.ListenAndServe(":8080", nil))

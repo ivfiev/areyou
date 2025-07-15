@@ -2,7 +2,6 @@ package cron
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"strconv"
@@ -48,7 +47,6 @@ func cronTTL(ctx context.Context) {
 
 func setup() {
 	ttl, ok := parseTime("MSG_TTL_MS")
-	fmt.Println(ok)
 	if ok {
 		MSG_TTL_MS = ttl
 	}
