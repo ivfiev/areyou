@@ -1,0 +1,124 @@
+<html>
+
+<body>
+	<form id="message_form">
+		<label for="field1">Space separated keywords:</label><br>
+		<input type="text" id="keywords" name="keywords"><br><br>
+		<div class="query-row">
+			<button type="button" id="run_query" onclick="getMessage()">Query</button>
+			<label id="stored_message"></label>
+		</div>
+		<label for="field2">New message:</label><br>
+		<input type="text" id="new_message" name="message"><br><br>
+		<button type="submit" onsubmit="handleFormSubmit(event)">Submit</button>
+	</form>
+</body>
+
+<script>
+	document.addEventListener("DOMContentLoaded", function () {
+		document.getElementById("message_form").addEventListener("submit", handleFormSubmit);
+	});
+
+	async function handleFormSubmit(event) {
+		event.preventDefault()
+		await postMessage()
+	}
+
+	async function postMessage() {
+		const kws = document.getElementById('keywords').value.split(' ')
+		const msg = document.getElementById('new_message').value
+		console.log(kws)
+		console.log(msg)
+		if (msg) {
+			await fetch("/message", {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ keywords: kws, message: msg })
+			})
+		} else {
+			const response = await fetch("/message?keywords=" + kws.join(','), { method: 'GET' })
+			if (response.ok) {
+				const msg = await response.json()
+				document.getElementById("stored_message").textContent = msg.message
+			}
+		}
+	}
+
+	async function getMessage() {
+		const kws = document.getElementById('keywords').value.split(' ')
+		console.log(kws)
+		const response = await fetch("/message?keywords=" + kws.join(','), { method: 'GET' })
+		if (response.ok) {
+			const msg = await response.json()
+			document.getElementById("stored_message").textContent = msg.message
+		}
+	}
+</script>
+
+<style>
+	body {
+		font-family: Arial, sans-serif;
+		padding: 2rem;
+		background-color: #f5f5f5;
+	}
+
+	form {
+		background-color: #fff;
+		padding: 2rem;
+		border-radius: 8px;
+		box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+		max-width: 400px;
+		margin: auto;
+	}
+
+	label {
+		display: block;
+		margin-top: 1rem;
+		font-weight: bold;
+	}
+
+	input[type="text"] {
+		width: 100%;
+		padding: 0.5rem;
+		margin-top: 0.25rem;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+		box-sizing: border-box;
+	}
+
+	button {
+		margin-top: 1rem;
+		padding: 0.5rem 1rem;
+		background-color: #007bff;
+		color: white;
+		border: none;
+		border-radius: 4px;
+		cursor: pointer;
+	}
+
+	button:hover {
+		background-color: #0056b3;
+	}
+
+	#stored_message {
+		display: block;
+		margin-top: 1rem;
+		font-style: italic;
+		color: #444;
+	}
+
+	.query-row {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		margin-top: 1rem;
+	}
+
+	#stored_message {
+		margin: 0;
+		font-style: italic;
+		color: #444;
+	}
+</style>
+
+</html>
