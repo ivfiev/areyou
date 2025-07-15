@@ -56,8 +56,3 @@ func main() {
 	cancelCron()
 	time.Sleep(1 * time.Second)
 }
-
-// e2e tests
-// chains/breadcrumbs
-// rate limit
-// tf deploy + lw

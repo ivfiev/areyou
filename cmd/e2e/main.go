@@ -7,9 +7,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
+	"maps"
 	"math/rand"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -25,29 +28,83 @@ type response struct {
 	Message *string `json:"message"`
 }
 
-var addr string
+var addr string = "http://localhost:8080"
+
+func loadTest() {
+	ws, secs := 10, 1
+	rps, wps := 100, 20
+	ch := make(chan map[string]string, ws)
+	defer close(ch)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(secs))
+	defer cancel()
+	for range ws {
+		go func() {
+			ch <- work(ctx, rps, wps)
+		}()
+	}
+	sent := make(map[string]string, secs*wps)
+	for range ws {
+		maps.Copy(sent, <-ch)
+	}
+	slog.Info("total requests handled", "reqs", len(sent))
+	tests := 10
+	for kws, msg := range sent {
+		resp, err := getMessage(strings.Split(kws, ","))
+		if err != nil {
+			log.Fatalf("error during load test %v", err)
+		}
+		if msg != *resp.Message {
+			log.Fatalf("load test failed: %s != %s", msg, *resp.Message)
+		}
+		tests--
+		if tests == 0 {
+			break
+		}
+	}
+	slog.Info("load test passed")
+}
+
+func notFoundTest() {
+	kws := []string{"this", "will", "not", "be", "there"}
+	resp, err := getMessage(kws)
+	if err != nil {
+		log.Fatalf("failed not found test %v", err)
+	}
+	if resp.Message != nil || *resp.Error != "not found" {
+		log.Fatalf("failed not found test: value exists")
+	}
+	slog.Info("404 test passed")
+}
 
 func main() {
 	if len(os.Args) < 2 {
 		log.Fatalf("missing cli args")
 	}
-	addr = os.Args[1]
+	path := os.Args[1]
+	cmd := exec.Command(path)
+	err := cmd.Start()
+	if err != nil {
+		log.Fatalf("could not start the service %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	tests := []func(){loadTest, notFoundTest}
 	var wg sync.WaitGroup
-	ws := 500
-	rps, wps := 500, 250
-	secs := 10
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(secs))
-	defer cancel()
-	wg.Add(ws)
-	reqs := 0
-	for range ws {
+	wg.Add(len(tests))
+	for _, test := range tests {
 		go func() {
 			defer wg.Done()
-			reqs += work(ctx, rps, wps)
+			test()
 		}()
 	}
 	wg.Wait()
-	fmt.Println(reqs)
+
+	err = cmd.Process.Kill()
+	if err != nil {
+		log.Fatalf("failed to kill process %v", err)
+	}
+	cmd.Process.Wait()
+	slog.Info("Tests passed...")
 }
 
 func getMessage(kws []string) (*response, error) {
@@ -104,18 +161,17 @@ func randWords() []string {
 	return words
 }
 
-func work(ctx context.Context, rps, wps int) int {
+func work(ctx context.Context, rps, wps int) map[string]string {
+	sent := make(map[string]string, 1000)
 	tr := time.NewTicker(time.Millisecond * time.Duration(1000/rps))
 	defer tr.Stop()
 	tw := time.NewTicker(time.Millisecond * time.Duration(1000/wps))
 	defer tw.Stop()
-	reqs := 0
 	for {
 		select {
 		case <-tr.C:
 			kws := randWords()
 			_, err := getMessage(kws)
-			reqs++
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -123,12 +179,12 @@ func work(ctx context.Context, rps, wps int) int {
 			kws := randWords()
 			msg := strings.Join(randWords(), " ")
 			status, err := postMessage(kws, msg)
-			reqs++
+			sent[strings.Join(kws, ",")] = msg
 			if err != nil || status != 200 {
 				log.Fatal(status, err)
 			}
 		case <-ctx.Done():
-			return reqs
+			return sent
 		}
 	}
 }
