@@ -1,56 +1,45 @@
 <html>
 
 <body>
-	<form id="message_form">
-		<label for="field1">Space separated keywords:</label><br>
-		<input type="text" id="keywords" name="keywords"><br><br>
-		<div class="query-row">
-			<button type="button" id="run_query" onclick="getMessage()">Query</button>
-			<label id="stored_message"></label>
+	<div class="form">
+		<label for="keywords">Keywords:</label>
+		<input type="text" id="keywords" name="keywords">
+		<label for="message">Message:</label>
+		<input type="text" id="message" name="message">
+		<div class="button-row">
+			<button type="button" id="run_query" onclick="handleGet(event)">Query</button>
+			<button type="button" id="submit" onclick="handleSubmit(event)">Submit</button>
 		</div>
-		<label for="field2">New message:</label><br>
-		<input type="text" id="new_message" name="message"><br><br>
-		<button type="submit" onsubmit="handleFormSubmit(event)">Submit</button>
-	</form>
+	</div>
 </body>
 
 <script>
-	document.addEventListener("DOMContentLoaded", function () {
-		document.getElementById("message_form").addEventListener("submit", handleFormSubmit);
-	});
-
-	async function handleFormSubmit(event) {
+	async function handleSubmit(event) {
 		event.preventDefault()
 		await postMessage()
 	}
 
+	async function handleGet(event) {
+		event.preventDefault()
+		await getMessage()
+	}
+
 	async function postMessage() {
 		const kws = document.getElementById('keywords').value.split(' ')
-		const msg = document.getElementById('new_message').value
-		console.log(kws)
-		console.log(msg)
-		if (msg) {
-			await fetch("/message", {
-				method: 'POST',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ keywords: kws, message: msg })
-			})
-		} else {
-			const response = await fetch("/message?keywords=" + kws.join(','), { method: 'GET' })
-			if (response.ok) {
-				const msg = await response.json()
-				document.getElementById("stored_message").textContent = msg.message
-			}
-		}
+		const msg = document.getElementById('message').value
+		await fetch("/message", {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ keywords: kws, message: msg })
+		})
 	}
 
 	async function getMessage() {
 		const kws = document.getElementById('keywords').value.split(' ')
-		console.log(kws)
 		const response = await fetch("/message?keywords=" + kws.join(','), { method: 'GET' })
 		if (response.ok) {
 			const msg = await response.json()
-			document.getElementById("stored_message").textContent = msg.message
+			document.getElementById("message").value = msg.message
 		}
 	}
 </script>
@@ -62,7 +51,7 @@
 		background-color: #f5f5f5;
 	}
 
-	form {
+	.form {
 		background-color: #fff;
 		padding: 2rem;
 		border-radius: 8px;
@@ -100,24 +89,11 @@
 		background-color: #0056b3;
 	}
 
-	#stored_message {
-		display: block;
-		margin-top: 1rem;
-		font-style: italic;
-		color: #444;
-	}
-
-	.query-row {
+	.button-row {
 		display: flex;
 		align-items: center;
 		gap: 1rem;
 		margin-top: 1rem;
-	}
-
-	#stored_message {
-		margin: 0;
-		font-style: italic;
-		color: #444;
 	}
 </style>
 
