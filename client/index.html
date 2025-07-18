@@ -27,19 +27,25 @@
 	async function postMessage() {
 		const kws = document.getElementById('keywords').value.split(' ')
 		const msg = document.getElementById('message').value
-		await fetch("/message", {
+		const resp = await fetch("/message", {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ keywords: kws, message: msg })
 		})
+		if (!resp.ok) {
+			const msg = await resp.json()
+			alert(msg.error)
+		}
 	}
 
 	async function getMessage() {
 		const kws = document.getElementById('keywords').value.split(' ')
-		const response = await fetch("/message?keywords=" + kws.join(','), { method: 'GET' })
-		if (response.ok) {
-			const msg = await response.json()
+		const resp = await fetch("/message?keywords=" + kws.join(','), { method: 'GET' })
+		if (resp.ok) {
+			const msg = await resp.json()
 			document.getElementById("message").value = msg.message
+		} else {
+			document.getElementById("message").value = ''
 		}
 	}
 </script>
