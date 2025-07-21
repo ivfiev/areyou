@@ -13,30 +13,34 @@ var (
 	Conflict = errors.New("conflict")
 )
 
-func Query(kws []string) (string, bool, error) {
+func Query(kws []string) ([]string, bool, error) {
 	if len(kws) < 1 || len(kws) > 9 {
-		return "", false, BadQuery
+		return nil, false, BadQuery
 	}
 	for _, kw := range kws {
 		if len(kw) < 2 || len(kw) > 16 {
-			return "", false, BadQuery
+			return nil, false, BadQuery
 		}
 	}
 	kws = dedup(kws)
 	cat := cat(kws)
 	hash := hash(cat)
-	msg, ok, err := db.QueryKey(hash)
+	msgs, ok, err := db.QueryKey(hash)
 	if err != nil {
-		return "", false, mapErr(err)
+		return nil, false, mapErr(err)
 	}
 	if !ok {
-		return "", false, nil
+		return nil, false, nil
 	}
-	dmsg, err := decrypt(encryptionKey(hash, cat), msg)
-	if err != nil {
-		return "", true, fmt.Errorf("decryption error %w", err)
+	dmsgs := make([]string, 0, len(msgs))
+	for _, msg := range msgs {
+		dmsg, err := decrypt(encryptionKey(hash, cat), msg)
+		if err != nil {
+			return nil, false, fmt.Errorf("decryption error %w", err)
+		}
+		dmsgs = append(dmsgs, dmsg)
 	}
-	return dmsg, true, nil
+	return dmsgs, true, nil
 }
 
 func Create(kws []string, msg string) error {

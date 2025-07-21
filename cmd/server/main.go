@@ -27,7 +27,7 @@ func main() {
 	cron.Start(ctx)
 	slog.Info("cron running")
 
-	http.HandleFunc("/message", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/messages", func(w http.ResponseWriter, r *http.Request) {
 		if shuttingDown {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			w.Write([]byte("server is shutting down"))

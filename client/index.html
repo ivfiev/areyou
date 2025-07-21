@@ -10,6 +10,7 @@
 			<button type="button" id="run_query" onclick="handleGet(event)">Query</button>
 			<button type="button" id="submit" onclick="handleSubmit(event)">Submit</button>
 		</div>
+		<ul id="messages"></ul>
 	</div>
 </body>
 
@@ -27,7 +28,7 @@
 	async function postMessage() {
 		const kws = document.getElementById('keywords').value.split(' ')
 		const msg = document.getElementById('message').value
-		const resp = await fetch("/message", {
+		const resp = await fetch("/messages", {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ keywords: kws, message: msg })
@@ -35,16 +36,26 @@
 		if (!resp.ok) {
 			const msg = await resp.json()
 			alert(msg.error)
+		} else {
+			await getMessage()
 		}
 	}
 
 	async function getMessage() {
 		const kws = document.getElementById('keywords').value.split(' ')
-		const resp = await fetch("/message?keywords=" + kws.join(','), { method: 'GET' })
+		const resp = await fetch("/messages?keywords=" + kws.join(','), { method: 'GET' })
 		if (resp.ok) {
-			const msg = await resp.json()
-			document.getElementById("message").value = msg.message
+			const msgs = await resp.json()
+			const ul = document.getElementById("messages")
+			ul.innerHTML = ''
+			msgs.messages.forEach(msg => {
+				const li = document.createElement('li')
+				li.textContent = msg
+				ul.appendChild(li)
+			})
 		} else {
+			const ul = document.getElementById("messages")
+			ul.innerHTML = ''
 			document.getElementById("message").value = ''
 		}
 	}
@@ -100,6 +111,27 @@
 		align-items: center;
 		gap: 1rem;
 		margin-top: 1rem;
+	}
+
+	ul#messages {
+		list-style-type: none;
+		padding: 0;
+		margin-top: 1.5rem;
+	}
+
+	ul#messages li {
+		background-color: #e9f5ff;
+		border: 1px solid #b3daff;
+		padding: 0.75rem;
+		margin-bottom: 0.5rem;
+		border-radius: 6px;
+		font-size: 0.95rem;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+		transition: background-color 0.3s ease;
+	}
+
+	ul#messages li:hover {
+		background-color: #d0ecff;
 	}
 </style>
 

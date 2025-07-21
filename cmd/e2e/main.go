@@ -24,8 +24,8 @@ type request struct {
 }
 
 type response struct {
-	Error   *string `json:"error"`
-	Message *string `json:"message"`
+	Error    *string  `json:"error"`
+	Messages []string `json:"messages"`
 }
 
 var addr string = "http://localhost:8080"
@@ -49,12 +49,12 @@ func loadTest() {
 	slog.Info("total requests handled", "reqs", len(sent))
 	tests := 10
 	for kws, msg := range sent {
-		resp, err := getMessage(strings.Split(kws, ","))
+		resp, err := getMessages(strings.Split(kws, ","))
 		if err != nil {
 			log.Fatalf("error during load test %v", err)
 		}
-		if msg != *resp.Message {
-			log.Fatalf("load test failed: %s != %s", msg, *resp.Message)
+		if msg != resp.Messages[0] {
+			log.Fatalf("load test failed: %s != %s", msg, resp.Messages)
 		}
 		tests--
 		if tests == 0 {
@@ -66,14 +66,42 @@ func loadTest() {
 
 func notFoundTest() {
 	kws := []string{"this", "will", "not", "be", "there"}
-	resp, err := getMessage(kws)
+	resp, err := getMessages(kws)
 	if err != nil {
 		log.Fatalf("failed not found test %v", err)
 	}
-	if resp.Message != nil || *resp.Error != "not found" {
+	if resp.Messages != nil || *resp.Error != "not found" {
 		log.Fatalf("failed not found test: value exists")
 	}
 	slog.Info("404 test passed")
+}
+
+func threadTest() {
+	kws := []string{"thread_key"}
+	_, err := postMessage(kws, "1")
+	if err != nil {
+		log.Fatalf("failed to post first message")
+	}
+	time.Sleep(5 * time.Millisecond)
+	_, err = postMessage(kws, "2")
+	if err != nil {
+		log.Fatalf("failed to post second message")
+	}
+	time.Sleep(5 * time.Millisecond)
+	_, err = postMessage(kws, "3")
+	if err != nil {
+		log.Fatalf("failed to post third message")
+	}
+	resp, err := getMessages(kws)
+	if err != nil {
+		log.Fatalf("failed to get the thread")
+	}
+	if len(resp.Messages) != 3 {
+		log.Fatalf("expected 3 messages but got %v", resp.Messages)
+	}
+	if resp.Messages[0] != "1" || resp.Messages[1] != "2" || resp.Messages[2] != "3" {
+		log.Fatalf("bad message contents")
+	}
 }
 
 func main() {
@@ -86,9 +114,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not start the service %v", err)
 	}
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
-	tests := []func(){loadTest, notFoundTest}
+	tests := []func(){loadTest, notFoundTest, threadTest}
 	var wg sync.WaitGroup
 	wg.Add(len(tests))
 	for _, test := range tests {
@@ -107,8 +135,8 @@ func main() {
 	slog.Info("Tests passed...")
 }
 
-func getMessage(kws []string) (*response, error) {
-	uri := fmt.Sprintf("%s/message?keywords=%s", addr, strings.Join(kws, ","))
+func getMessages(kws []string) (*response, error) {
+	uri := fmt.Sprintf("%s/messages?keywords=%s", addr, strings.Join(kws, ","))
 	resp, err := http.Get(uri)
 	if err != nil {
 		return nil, err
@@ -133,7 +161,7 @@ func postMessage(kws []string, msg string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	uri := fmt.Sprintf("%s/message", addr)
+	uri := fmt.Sprintf("%s/messages", addr)
 	resp, err := http.Post(uri, "application/json", &buf)
 	if err != nil {
 		return 0, err
@@ -171,7 +199,7 @@ func work(ctx context.Context, rps, wps int) map[string]string {
 		select {
 		case <-tr.C:
 			kws := randWords()
-			_, err := getMessage(kws)
+			_, err := getMessages(kws)
 			if err != nil {
 				log.Fatal(err)
 			}

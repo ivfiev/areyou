@@ -18,7 +18,7 @@ func Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	kws := strings.Split(query[0], ",")
-	msg, ok, err := svc.Query(kws)
+	msgs, ok, err := svc.Query(kws)
 	if err != nil {
 		handleSvcErr(err, w)
 		return
@@ -27,13 +27,16 @@ func Get(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not found")
 		return
 	}
+	resp := GetMessagesResponse{
+		Messages: msgs,
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, `{"message": "%s"}`, msg)
+	json.NewEncoder(w).Encode(resp)
 }
 
 func Post(w http.ResponseWriter, r *http.Request) {
-	var body PostMessage
+	var body PostMessageRequest
 	json.NewDecoder(r.Body).Decode(&body)
 	err := svc.Create(body.Keywords, body.Message)
 	if err != nil {

@@ -40,9 +40,10 @@ func runMigrations() error {
 		`PRAGMA temp_store=MEMORY;`,
 
 		`CREATE TABLE IF NOT EXISTS messages (
-				key TEXT PRIMARY KEY,
+				key TEXT NOT NULL,
+				ts  INTEGER NOT NULL,
 				msg TEXT NOT NULL,
-				ts  INTEGER NOT NULL
+				PRIMARY KEY (key, ts)
 		);`,
 	}
 	for _, stmt := range migrations {
@@ -55,26 +56,27 @@ func runMigrations() error {
 	return nil
 }
 
-func QueryKey(key string) (string, bool, error) {
+func QueryKey(key string) ([]string, bool, error) {
 	rows, err := db.Query("SELECT msg FROM (messages) WHERE key = ?", key)
 	if err != nil {
-		return "", false, fmt.Errorf("error querying %w", err)
+		return nil, false, fmt.Errorf("error querying %w", err)
 	}
 	defer rows.Close()
-	if rows.Next() {
+	msgs := make([]string, 0, 10)
+	for rows.Next() {
 		var msg string
 		err = rows.Scan(&msg)
 		if err != nil {
-			return "", false, fmt.Errorf("error scanning %w", err)
+			return nil, false, fmt.Errorf("error scanning %w", err)
 		}
-		return msg, true, nil
+		msgs = append(msgs, msg)
 	}
-	return "", false, nil
+	return msgs, len(msgs) > 0, nil
 }
 
 func Insert(key, msg string) error {
 	now := time.Now().UnixMilli()
-	_, err := db.Exec("INSERT INTO messages (key, msg, ts) values (?, ?, ?)", key, msg, now)
+	_, err := db.Exec("INSERT INTO messages (key, ts, msg) values (?, ?, ?)", key, now, msg)
 	return err
 }
 
