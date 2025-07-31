@@ -51,10 +51,12 @@ func loadTest() {
 	for kws, msg := range sent {
 		resp, err := getMessages(strings.Split(kws, ","))
 		if err != nil {
-			log.Fatalf("error during load test %v", err)
+			slog.Error("error during load test", "err", err)
+			return
 		}
 		if msg != resp.Messages[0] {
-			log.Fatalf("load test failed: %s != %s", msg, resp.Messages)
+			slog.Error("load test failed: messages not equal", msg, resp.Messages)
+			return
 		}
 		tests--
 		if tests == 0 {
@@ -68,10 +70,12 @@ func notFoundTest() {
 	kws := []string{"this", "will", "not", "be", "there"}
 	resp, err := getMessages(kws)
 	if err != nil {
-		log.Fatalf("failed not found test %v", err)
+		slog.Error("failed not found test", "err", err)
+		return
 	}
 	if resp.Messages != nil || *resp.Error != "not found" {
-		log.Fatalf("failed not found test: value exists")
+		slog.Error("failed not found test: value exists")
+		return
 	}
 	slog.Info("404 test passed")
 }
@@ -80,33 +84,39 @@ func threadTest() {
 	kws := []string{"thread_key"}
 	_, err := postMessage(kws, "1")
 	if err != nil {
-		log.Fatalf("failed to post first message")
+		slog.Error("failed to post first message")
+		return
 	}
 	time.Sleep(5 * time.Millisecond)
 	_, err = postMessage(kws, "2")
 	if err != nil {
-		log.Fatalf("failed to post second message")
+		slog.Error("failed to post second message")
+		return
 	}
 	time.Sleep(5 * time.Millisecond)
 	_, err = postMessage(kws, "3")
 	if err != nil {
-		log.Fatalf("failed to post third message")
+		slog.Error("failed to post third message")
+		return
 	}
 	resp, err := getMessages(kws)
 	if err != nil {
-		log.Fatalf("failed to get the thread")
+		slog.Error("failed to get the thread")
+		return
 	}
 	if len(resp.Messages) != 3 {
-		log.Fatalf("expected 3 messages but got %v", resp.Messages)
+		slog.Error("expected 3 messages but got", "msgs", resp.Messages)
+		return
 	}
 	if resp.Messages[0] != "1" || resp.Messages[1] != "2" || resp.Messages[2] != "3" {
-		log.Fatalf("bad message contents")
+		slog.Error("bad message contents", "msgs", resp.Messages)
+		return
 	}
 }
 
 func main() {
 	if len(os.Args) < 2 {
-		log.Fatalf("missing cli args")
+		log.Fatal("missing cli args")
 	}
 	path := os.Args[1]
 	cmd := exec.Command(path)

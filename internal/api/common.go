@@ -1,4 +1,4 @@
-package svc
+package api
 
 import (
 	"crypto/aes"
@@ -7,7 +7,17 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
+	"slices"
+	"strings"
 )
+
+func cat(kws []string) string {
+	return strings.Join(kws, "|")
+}
+
+func encryptionKey(hash, key string) string {
+	return hash + key
+}
 
 func hash(key string) string {
 	hash := sha256.Sum256([]byte(key))
@@ -56,4 +66,17 @@ func decrypt(key, msg string) (string, error) {
 		return "", err
 	}
 	return string(decr), nil
+}
+
+func dedup(kws []string) []string {
+	slices.SortFunc(kws, strings.Compare)
+	i, j := 0, 0
+	for i < len(kws) {
+		kws[j] = kws[i]
+		j++
+		for i < len(kws) && kws[i] == kws[j-1] {
+			i++
+		}
+	}
+	return kws[:j]
 }
